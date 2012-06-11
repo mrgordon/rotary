@@ -161,8 +161,8 @@
   [attr-value]
   (or (.getS attr-value)
       (.getN attr-value)
-      (.getNS attr-value)
-      (.getSS attr-value)))
+      (if-let [v (.getNS attr-value)] (into #{} v))
+      (if-let [v (.getSS attr-value)] (into #{} v))))
 
 (defn- item-map
   "Turn a item in DynamoDB into a Clojure map."
