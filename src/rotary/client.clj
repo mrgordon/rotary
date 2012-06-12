@@ -186,25 +186,32 @@
 
 (defn- item-key
   "Create a Key object from a value."
-  [hash-key]
-  (Key. (to-attr-value hash-key)))
+  ([hash-key]
+     (item-key hash-key nil))
+  ([hash-key range-key]
+     (Key. (to-attr-value hash-key)
+           (to-attr-value range-key))))
 
 (defn get-item
   "Retrieve an item from a DynamoDB table by its hash key."
-  [cred table hash-key]
-  (as-map
-   (.getItem
-    (db-client cred)
-    (doto (GetItemRequest.)
-      (.setTableName table)
-      (.setKey (item-key hash-key))))))
+  ([cred table hash-key]
+     (get-item cred table hash-key nil))
+  ([cred table hash-key range-key]
+     (as-map
+      (.getItem
+       (db-client cred)
+       (doto (GetItemRequest.)
+         (.setTableName table)
+         (.setKey (item-key hash-key range-key)))))))
 
 (defn delete-item
   "Delete an item from a DynamoDB table by its hash key."
-  [cred table hash-key]
-  (.deleteItem
-   (db-client cred)
-   (DeleteItemRequest. table (item-key hash-key))))
+  ([cred table hash-key]
+     (delete-item cred table hash-key nil))
+  ([cred table hash-key range-key]
+     (.deleteItem
+      (db-client cred)
+      (DeleteItemRequest. table (item-key hash-key range-key)))))
 
 (defn scan
   "Return the items in a DynamoDB table."
