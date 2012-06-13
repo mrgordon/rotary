@@ -2,7 +2,6 @@
   "Amazon DynamoDB client functions."
   (:use [clojure.algo.generic.functor :only (fmap)])
   (:require [clojure.string :as str])
-  (:require [clojure.walk :as walk])
   (:import com.amazonaws.auth.BasicAWSCredentials
            com.amazonaws.services.dynamodb.AmazonDynamoDBClient
            [com.amazonaws.services.dynamodb.model
