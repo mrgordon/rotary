@@ -2,10 +2,12 @@
   "Amazon DynamoDB client functions."
   (:use [clojure.algo.generic.functor :only (fmap)])
   (:require [clojure.string :as str])
+  (:require [clojure.walk :as walk])
   (:import com.amazonaws.auth.BasicAWSCredentials
            com.amazonaws.services.dynamodb.AmazonDynamoDBClient
            [com.amazonaws.services.dynamodb.model
             AttributeValue
+            AttributeValueUpdate
             Condition
             CreateTableRequest
             UpdateTableRequest
@@ -23,6 +25,7 @@
             PutItemRequest
             ResourceNotFoundException
             ScanRequest
+            UpdateItemRequest
             QueryRequest]))
 
 (defn- db-client*
@@ -184,6 +187,20 @@
      (.setTableName table)
      (.setItem (fmap to-attr-value item)))))
 
+(defn- normalize-operator [operator]
+  "Maps Clojure operators to DynamoDB operators"
+  (let [operator-map {:> "GT" :>= "GE" :< "LT" :<= "LE" := "EQ"}
+        op (->> operator name str/upper-case)]
+    (operator-map (keyword op) op)))
+
+(defn- prepare-attribute-update [value-clause]
+  (let [[operator value] value-clause]
+    (AttributeValueUpdate. (to-attr-value value) (normalize-operator operator))))
+
+(defn- prepare-attribute-update-map [hash]
+  (letfn [(updater [v] (if (vector? v) [(str (first v)) (prepare-attribute-update (last v))] v))]
+    (walk/postwalk updater hash)))
+
 (defn- item-key
   "Create a Key object from a value."
   ([hash-key]
@@ -191,6 +208,17 @@
   ([hash-key range-key]
      (Key. (to-attr-value hash-key)
            (to-attr-value range-key))))
+
+(defn update-item
+  "Update an item (a Clojure map) in a DynamoDB table."
+  [cred table hash-key range-key & update-map]
+  (let [attribute-update-map (prepare-attribute-update-map (apply hash-map update-map))]
+    (.updateItem
+     (db-client cred)
+     (doto (UpdateItemRequest.)
+       (.setTableName table)
+       (.setKey (item-key hash-key range-key))
+       (.setAttributeUpdates attribute-update-map)))))
 
 (defn get-item
   "Retrieve an item from a DynamoDB table by its hash key."
@@ -230,12 +258,6 @@
                            (doto (Condition.)
                              (.withComparisonOperator operator)
                              (.withAttributeValueList attribute-list)))))
-
-(defn- normalize-operator [operator]
-  "Maps Clojure operators to DynamoDB operators"
-  (let [operator-map {:> "GT" :>= "GE" :< "LT" :<= "LE" := "EQ"}
-        op (->> operator name str/upper-case)]
-    (operator-map (keyword op) op)))
 
 (defn- query-request
   "Create a QueryRequest object."
