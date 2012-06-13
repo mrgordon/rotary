@@ -150,6 +150,12 @@
       .getTableNames
       seq))
 
+(defn- normalize-operator [operator]
+  "Maps Clojure operators to DynamoDB operators"
+  (let [operator-map {:> "GT" :>= "GE" :< "LT" :<= "LE" := "EQ"}
+        op (->> operator name str/upper-case)]
+    (operator-map (keyword op) op)))
+
 (defn- to-attr-value
   "Convert a value into an AttributeValue object."
   [value]
@@ -158,6 +164,12 @@
    (doto (AttributeValue.) (.setS value))
    (number? value)
    (doto (AttributeValue.) (.setN (str value)))))
+
+(defn- to-attr-value-update
+  "Convert an action and a value into an AttributeValueUpdate object."
+  [value-clause]
+  (let [[operator value] value-clause]
+    (AttributeValueUpdate. (to-attr-value value) (normalize-operator operator))))
 
 (defn- get-value
   "Get the value of an AttributeValue object."
@@ -187,20 +199,6 @@
      (.setTableName table)
      (.setItem (fmap to-attr-value item)))))
 
-(defn- normalize-operator [operator]
-  "Maps Clojure operators to DynamoDB operators"
-  (let [operator-map {:> "GT" :>= "GE" :< "LT" :<= "LE" := "EQ"}
-        op (->> operator name str/upper-case)]
-    (operator-map (keyword op) op)))
-
-(defn- prepare-attribute-update [value-clause]
-  (let [[operator value] value-clause]
-    (AttributeValueUpdate. (to-attr-value value) (normalize-operator operator))))
-
-(defn- prepare-attribute-update-map [hash]
-  (letfn [(updater [v] (if (vector? v) [(str (first v)) (prepare-attribute-update (last v))] v))]
-    (walk/postwalk updater hash)))
-
 (defn- item-key
   "Create a Key object from a value."
   ([hash-key]
@@ -212,7 +210,7 @@
 (defn update-item
   "Update an item (a Clojure map) in a DynamoDB table."
   [cred table hash-key range-key & update-map]
-  (let [attribute-update-map (prepare-attribute-update-map (apply hash-map update-map))]
+  (let [attribute-update-map (fmap to-attr-value-update (apply hash-map update-map))]
     (.updateItem
      (db-client cred)
      (doto (UpdateItemRequest.)
