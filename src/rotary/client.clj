@@ -168,7 +168,7 @@
     (string? (first value))
     (doto (AttributeValue.) (.setSS value))
     (number? (first value))
-    (doto (AttributeValue.) (.setNN value)))))
+    (doto (AttributeValue.) (.setNS value)))))
 
 (defn- to-attr-value-update
   "Convert an action and a value into an AttributeValueUpdate object."
