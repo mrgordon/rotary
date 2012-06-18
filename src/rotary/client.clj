@@ -288,8 +288,9 @@
     :count - return a count if logical true
     :consistent - return a consistent read if logical true"
   [cred table hash-key & [range-clause options]]
-  (map item-map
-       (.getItems
-        (.query
-         (db-client cred)
-         (query-request table hash-key range-clause options)))))
+  (let [query-result (.query
+                      (db-client cred)
+                      (query-request table hash-key range-clause options))]
+    (if (get options :count)
+      (.getCount query-result)
+      (map item-map (.getItems query-result)))))
