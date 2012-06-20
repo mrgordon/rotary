@@ -239,10 +239,7 @@
       (let [response (batch-write cred table items)
             unprocessed (vals (.getUnprocessedItems response))]
         (if (> (count unprocessed) 0)
-          (do
-            (println response)
-            (println unprocessed)
-            (swap! success (constantly false))))))
+          (swap! success (constantly false)))))
     @success))
 
 (defn- item-key
