@@ -347,22 +347,20 @@
       (.setExpected (to-expected-values expected))
       (.setReturnValues return-values)))))
 
-(defn- set-range-condition
-  "Add the range key condition to a QueryRequest object"
-  [query-request operator & [range-key range-end]]
-  (let [attribute-list (map (fn [arg] (to-attr-value arg)) (remove nil? [range-key range-end]))]
-    (.setRangeKeyCondition query-request
-                           (doto (Condition.)
-                             (.withComparisonOperator operator)
-                             (.withAttributeValueList attribute-list)))))
+(defn- build-condition
+  [operator & values]
+  (let [attribute-list (map to-attr-value (remove nil? values))]
+    (doto (Condition.)
+      (.withComparisonOperator (normalize-operator operator))
+      (.withAttributeValueList attribute-list))))
 
 (defn- query-request
   "Create a QueryRequest object."
-  [table hash-key range-clause {:keys [order limit count consistent exclusive-start-key]}]
+  [table hash-key range-clause {:keys [order limit count consistent attributes-to-get exclusive-start-key]}]
   (let [qr (QueryRequest. table (to-attr-value hash-key))
         [operator range-key range-end] range-clause]
     (when operator
-      (set-range-condition qr (normalize-operator operator) range-key range-end))
+      (.setRangeKeyCondition qr (build-condition operator range-key range-end)))
     (when order
       (.setScanIndexForward qr (not= order :desc)))
     (when limit
@@ -371,6 +369,8 @@
       (.setCount qr count))
     (when consistent
       (.setConsistentRead qr consistent))
+    (when attributes-to-get
+      (.setAttributesToGet qr attributes-to-get))
     (when exclusive-start-key
       (.setExclusiveStartKey qr (item-key exclusive-start-key)))
     qr))
@@ -383,8 +383,9 @@
     :limit - should be a positive integer
     :count - return a count if logical true
     :consistent - return a consistent read if logical true
+    :attributes-to-get - a list of attribute names
     :exclusive-start-key - primary key of the item from which to continue an earlier query"
-  [cred table hash-key range-clause & {:keys [order limit count consistent exclusive-start-key] :as options}]
+  [cred table hash-key range-clause & {:keys [order limit count consistent attributes-to-get exclusive-start-key] :as options}]
   (let [query-result (.query
                       (db-client cred)
                       (query-request table hash-key range-clause options))]
@@ -395,16 +396,26 @@
              (if-let [k (.getLastEvaluatedKey query-result)]
                {:last-evaluated-key (decode-key k)})))))
 
+(defn- to-scan-filter
+  [scan-filter]
+  (when scan-filter
+    (fmap #(apply build-condition %) scan-filter)))
+
 (defn scan
   "Return the items in a DynamoDB table."
-  [cred table & {:keys [attributes-to-get count exclusive-start-key limit scan-filter]}]
-  (map item-map
-       (.getItems
-        (.scan
-         (db-client cred)
-         (doto (ScanRequest. table)
-           (.setAttributesToGet attributes-to-get)
-           (.setCount count)
-           (.setExclusiveStartKey (item-key exclusive-start-key))
-           (.setLimit limit)
-           )))))
+  [cred table scan-filter & {:keys [limit count attributes-to-get count exclusive-start-key]}]
+  (let [result (.scan
+                (db-client cred)
+                (doto (ScanRequest. table)
+                  (.setScanFilter (to-scan-filter scan-filter))
+                  (.setLimit limit)
+                  (.setCount count)
+                  (.setAttributesToGet attributes-to-get)
+                  (.setExclusiveStartKey (item-key exclusive-start-key))))]
+    (with-meta
+      (map item-map (or (.getItems result) {}))
+      (merge {:count (.getCount result)
+              :scanned-count (.getScannedCount result)
+              :consumed-capacity-units (.getConsumedCapacityUnits result)}
+             (if-let [k (.getLastEvaluatedKey result)]
+               {:last-evaluated-key (decode-key k)})))))
