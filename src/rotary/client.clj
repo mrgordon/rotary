@@ -232,7 +232,7 @@
 
 (defn multiple-batch-write
   "Batch writes the items (Clojure maps) in groups of 25 to a DynamoDB table. Retries failing groups once."
-  [cred table item-coll]
+  [cred table item-coll & [timeout]]
   (let [get-unprocessed (fn [res] (flatten (map vec (vals (.getUnprocessedItems res)))))
         partitions (partition-all 25 item-coll)
         success (atom true)]
@@ -241,10 +241,11 @@
         (let [response (batch-write cred table items)
               unprocessed (get-unprocessed response)]
           (if (seq unprocessed)
-            (let [retry-response (put-batch cred table unprocessed)
-                  retry-unprocessed (get-unprocessed retry-response)]
-              (if (seq retry-unprocessed)
-                (swap! success (constantly false))))))))
+            (do
+              (Thread/sleep (or timeout 50))
+              (let [retry-response (put-batch cred table unprocessed)]
+                (if (seq (get-unprocessed retry-response))
+                  (swap! success (constantly false)))))))))
     @success))
 
 (defn- item-key
