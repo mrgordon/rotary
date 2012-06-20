@@ -7,9 +7,10 @@
            [com.amazonaws.services.dynamodb.model
             AttributeValue
             AttributeValueUpdate
+            BatchWriteItemRequest
+            BatchWriteItemResult
             Condition
             CreateTableRequest
-            UpdateTableRequest
             DescribeTableRequest
             DescribeTableResult
             DeleteTableRequest
@@ -22,10 +23,13 @@
             ProvisionedThroughput
             ProvisionedThroughputDescription
             PutItemRequest
+            PutRequest
+            QueryRequest
             ResourceNotFoundException
             ScanRequest
             UpdateItemRequest
-            QueryRequest]))
+            UpdateTableRequest
+            WriteRequest]))
 
 (defn- db-client*
   "Get a AmazonDynamoDBClient instance for the supplied credentials."
@@ -203,6 +207,43 @@
    (doto (PutItemRequest.)
      (.setTableName table)
      (.setItem (fmap to-attr-value item)))))
+
+(defn- to-put-request [item]
+  "Transforms an item (a Clojure map) into a PutRequest"
+  (doto (PutRequest.)
+    (.setItem (fmap to-attr-value item))))
+
+(defn- to-write-request [item]
+  "Transforms an item (a Clojure map) into a WriteRequest"
+  (doto (WriteRequest.)
+    (.setPutRequest (to-put-request item))))
+
+(defn- put-batch [cred table write-requests]
+  "Add up to 25 write requests to a DynamoDB table as a batch."
+  (.batchWriteItem
+   (db-client cred)
+   (doto (BatchWriteItemRequest.)
+     (.setRequestItems {table write-requests}))))
+
+(defn batch-write [cred table items]
+  "Add up to 25 items (Clojure maps) to a DynamoDB table as a batch."
+  (let [write-requests (map to-write-request items)]
+    (put-batch cred table write-requests)))
+
+(defn multiple-batch-write
+  "Batch writes the items (Clojure maps) in groups of 25 to a DynamoDB table."
+  [cred table item-coll]
+  (let [partitions (partition-all 25 item-coll)
+        success (atom true)]
+    (doseq [items partitions]
+      (let [response (batch-write cred table items)
+            unprocessed (vals (.getUnprocessedItems response))]
+        (if (> (count unprocessed) 0)
+          (do
+            (println response)
+            (println unprocessed)
+            (swap! success (constantly false))))))
+    @success))
 
 (defn- item-key
   "Create a Key object from a value."
