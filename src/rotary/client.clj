@@ -11,10 +11,12 @@
             BatchWriteItemResult
             Condition
             CreateTableRequest
+            DeleteItemRequest
+            DeleteItemResult
+            DeleteTableRequest
             DescribeTableRequest
             DescribeTableResult
-            DeleteTableRequest
-            DeleteItemRequest
+            ExpectedAttributeValue
             GetItemRequest
             GetItemResult
             Key
@@ -23,6 +25,7 @@
             ProvisionedThroughput
             ProvisionedThroughputDescription
             PutItemRequest
+            PutItemResult
             PutRequest
             QueryRequest
             ResourceNotFoundException
@@ -107,14 +110,15 @@
   DescribeTableResult
   (as-map [result]
     (let [table (.getTable result)]
-      {:name          (.getTableName table)
-       :creation-date (.getCreationDateTime table)
-       :item-count    (.getItemCount table)
-       :key-schema    (as-map (.getKeySchema table))
-       :throughput    (as-map (.getProvisionedThroughput table))
-       :status        (-> (.getTableStatus table)
-                          (str/lower-case)
-                          (keyword))})))
+      {:name             (.getTableName table)
+       :creation-date    (.getCreationDateTime table)
+       :item-count       (.getItemCount table)
+       :table-size-bytes (.getTableSizeBytes table)
+       :key-schema       (as-map (.getKeySchema table))
+       :throughput       (as-map (.getProvisionedThroughput table))
+       :status           (-> (.getTableStatus table)
+                             (str/lower-case)
+                             (keyword))})))
 
 (defn describe-table
   "Returns a map describing the table in DynamoDB with the given name, or nil
@@ -177,8 +181,8 @@
 (defn- to-attr-value-update
   "Convert an action and a value into an AttributeValueUpdate object."
   [value-clause]
-  (let [[operator value] value-clause]
-    (AttributeValueUpdate. (to-attr-value value) (normalize-operator operator))))
+  (let [[action value] value-clause]
+    (AttributeValueUpdate. (to-attr-value value) (normalize-operator action))))
 
 (defn- get-value
   "Get the value of an AttributeValue object."
@@ -187,6 +191,19 @@
       (.getN attr-value)
       (if-let [v (.getNS attr-value)] (into #{} v))
       (if-let [v (.getSS attr-value)] (into #{} v))))
+
+(defn- to-expected-value
+  "Convert a value to an ExpcetedValue object. Handles ::exists
+  and ::not-exists specially."
+  [value]
+  (cond (= value ::exists) (ExpectedAttributeValue. true)
+        (= value ::not-exists) (ExpectedAttributeValue. false)
+        :else (if-let [av (to-attr-value value)] (ExpectedAttributeValue. av))))
+
+(defn- to-expected-values
+  [values]
+  (and (seq values)
+       (fmap to-expected-value values)))
 
 (defn- item-map
   "Turn a item in DynamoDB into a Clojure map."
@@ -197,16 +214,44 @@
 (extend-protocol AsMap
   GetItemResult
   (as-map [result]
-    (item-map (.getItem result))))
+    (with-meta
+      (item-map (or (.getItem result) {}))
+      {:consumed-capacity-units (.getConsumedCapacityUnits result)}))
+
+  PutItemResult
+  (as-map [result]
+    (with-meta
+      (item-map (or (.getAttributes result) {}))
+      {:consumed-capacity-units (.getConsumedCapacityUnits result)}))
+
+  DeleteItemResult
+  (as-map [result]
+    (with-meta
+      (item-map (or (.getAttributes result) {}))
+      {:consumed-capacity-units (.getConsumedCapacityUnits result)})))
 
 (defn put-item
-  "Add an item (a Clojure map) to a DynamoDB table."
-  [cred table item]
-  (.putItem
-   (db-client cred)
-   (doto (PutItemRequest.)
-     (.setTableName table)
-     (.setItem (fmap to-attr-value item)))))
+  "Add an item (a Clojure map) to a DynamoDB table.
+  Takes the following options:
+    :expected - a map from attribute name to:
+       :rotary.client/exists - checks if the attribute exists
+       :rotary.client/not-exists - checks if the attribute doesn't exist
+       anything else - checks if the attribute is equal to it
+    :return-values - specify what to return:
+       \"NONE\", \"ALL_OLD\", \"UPDATED_OLD\", \"ALL_NEW\", \"UPDATED_NEW\"
+
+  The metadata of the return value contains:
+    :consumed-capacity-units - the consumed capacity units"
+  ;; TODO Consider using keywords for the "return-values"
+  [cred table item & {:keys [expected return-values]}]
+  (as-map
+   (.putItem
+    (db-client cred)
+    (doto (PutItemRequest.)
+      (.setTableName table)
+      (.setItem (fmap to-attr-value item))
+      (.setExpected (to-expected-values expected))
+      (.setReturnValues return-values)))))
 
 (defn- to-put-request [item]
   "Transforms an item (a Clojure map) into a PutRequest"
@@ -249,69 +294,104 @@
 
 (defn- item-key
   "Create a Key object from a value."
-  ([hash-key]
-     (item-key hash-key nil))
+  ([[hash-key range-key :as key]]
+     (cond
+         (nil? key) nil
+         (vector? key) (item-key hash-key range-key)
+         :else (item-key key nil)))
   ([hash-key range-key]
      (Key. (to-attr-value hash-key)
            (to-attr-value range-key))))
 
+(defn- decode-key [k]
+  (let [hash (.getHashKeyElement k)
+        range (.getRangeKeyElement k)]
+    (if range
+      [(get-value hash) (get-value range)]
+      (get-value hash))))
+
 (defn update-item
-  "Update an item (a Clojure map) in a DynamoDB table."
-  [cred table hash-key range-key & update-map]
+  "Update an item (a Clojure map) in a DynamoDB table.
+
+  The key can be: hash-key, [hash-key], or [hash-key range-key]
+
+  Update map is a map from attribute name to [action value], where
+  action is one of :add, :put, or :delete.
+
+  Takes the following options:
+    :expected - a map from attribute name to:
+       :rotary.client/exists - checks if the attribute exists
+       :rotary.client/not-exists - checks if the attribute doesn't exist
+       anything else - checks if the attribute is equal to it
+    :return-values - specify what to return:
+       \"NONE\", \"ALL_OLD\", \"UPDATED_OLD\", \"ALL_NEW\", \"UPDATED_NEW\""
+  ;; TODO Consider using keywords for the "return-values"
+  [cred table [hash-key range-key :as key] update-map & {:keys [expected return-values]}]
   (let [attribute-update-map (fmap to-attr-value-update (apply hash-map update-map))]
     (.updateItem
      (db-client cred)
      (doto (UpdateItemRequest.)
        (.setTableName table)
-       (.setKey (item-key hash-key range-key))
-       (.setAttributeUpdates attribute-update-map)))))
+       (.setKey (item-key key))
+       (.setAttributeUpdates attribute-update-map)
+       (.setExpected (to-expected-values expected))
+       (.setReturnValues return-values)))))
 
 (defn get-item
-  "Retrieve an item from a DynamoDB table by its hash key."
-  ([cred table hash-key]
-     (get-item cred table hash-key nil))
-  ([cred table hash-key range-key]
-     (as-map
-      (.getItem
-       (db-client cred)
-       (doto (GetItemRequest.)
-         (.setTableName table)
-         (.setKey (item-key hash-key range-key)))))))
+  "Retrieve an item from a DynamoDB table by its key.
+  The key can be: hash-key, [hash-key], or [hash-key range-key]
+
+  Options can be:
+    :consistent - consistent read
+    :attributes-to-get - a list of attribute names to return
+
+  The metadata of the return value contains:
+    :consumed-capacity-units - the consumed capacity units"
+  [cred table [hash-key range-key :as key] & {:keys [consistent attributes-to-get] :or {consistent false}}]
+  (as-map
+   (.getItem
+    (db-client cred)
+    (doto (GetItemRequest.)
+      (.setTableName table)
+      (.setKey (item-key key))
+      (.setConsistentRead consistent)
+      (.setAttributesToGet attributes-to-get)))))
 
 (defn delete-item
-  "Delete an item from a DynamoDB table by its hash key."
-  ([cred table hash-key]
-     (delete-item cred table hash-key nil))
-  ([cred table hash-key range-key]
-     (.deleteItem
-      (db-client cred)
-      (DeleteItemRequest. table (item-key hash-key range-key)))))
+  "Delete an item from a DynamoDB table specified by its key, if the
+  coditions are met. Takes the following options:
+    :expected - a map from attribute name to:
+       :rotary.client/exists - checks if the attribute exists
+       :rotary.client/not-exists - checks if the attribute doesn't exist
+       anything else - checks if the attribute is equal to it
+    :return-values - specify what to return:
+       \"NONE\", \"ALL_OLD\", \"UPDATED_OLD\", \"ALL_NEW\", \"UPDATED_NEW\"
 
-(defn scan
-  "Return the items in a DynamoDB table."
-  [cred table]
-  (map item-map
-       (.getItems
-        (.scan
-         (db-client cred)
-         (ScanRequest. table)))))
+  The metadata of the return value contains:
+    :consumed-capacity-units - the consumed capacity units"
+  ;; TODO Consider using keywords for the "return-values"
+  [cred table [hash-key range-key :as key] & {:keys [expected return-values]}]
+  (as-map
+   (.deleteItem
+    (db-client cred)
+    (doto (DeleteItemRequest. table (item-key key))
+      (.setExpected (to-expected-values expected))
+      (.setReturnValues return-values)))))
 
-(defn- set-range-condition
-  "Add the range key condition to a QueryRequest object"
-  [query-request operator & [range-key range-end]]
-  (let [attribute-list (map (fn [arg] (to-attr-value arg)) (remove nil? [range-key range-end]))]
-    (.setRangeKeyCondition query-request
-                           (doto (Condition.)
-                             (.withComparisonOperator operator)
-                             (.withAttributeValueList attribute-list)))))
+(defn- build-condition
+  [operator & values]
+  (let [attribute-list (map to-attr-value (remove nil? values))]
+    (doto (Condition.)
+      (.withComparisonOperator (normalize-operator operator))
+      (.withAttributeValueList attribute-list))))
 
 (defn- query-request
   "Create a QueryRequest object."
-  [table hash-key range-clause {:keys [order limit count consistent]}]
+  [table hash-key range-clause {:keys [order limit count consistent attributes-to-get exclusive-start-key]}]
   (let [qr (QueryRequest. table (to-attr-value hash-key))
         [operator range-key range-end] range-clause]
     (when operator
-      (set-range-condition qr (normalize-operator operator) range-key range-end))
+      (.setRangeKeyCondition qr (build-condition operator range-key range-end)))
     (when order
       (.setScanIndexForward qr (not= order :desc)))
     (when limit
@@ -320,6 +400,10 @@
       (.setCount qr count))
     (when consistent
       (.setConsistentRead qr consistent))
+    (when attributes-to-get
+      (.setAttributesToGet qr attributes-to-get))
+    (when exclusive-start-key
+      (.setExclusiveStartKey qr (item-key exclusive-start-key)))
     qr))
 
 (defn query
@@ -329,11 +413,69 @@
     :order - may be :asc or :desc (defaults to :asc)
     :limit - should be a positive integer
     :count - return a count if logical true
-    :consistent - return a consistent read if logical true"
-  [cred table hash-key & [range-clause options]]
+    :consistent - return a consistent read if logical true
+    :attributes-to-get - a list of attribute names
+    :exclusive-start-key - primary key of the item from which to
+         continue an earlier query
+
+  The metadata of the return value contains:
+    :count - the number of items in the response
+    :consumed-capacity-units - the consumed capacity units
+    :last-evaluated-key - the primary key of the item where the query
+         operation stopped, or nil if the query is fully completed. It
+         can be used to continue the operation by supplying it as a
+         value to :exclusive-start-key"
+  [cred table hash-key range-clause & {:keys [order limit count consistent attributes-to-get exclusive-start-key] :as options}]
   (let [query-result (.query
                       (db-client cred)
                       (query-request table hash-key range-clause options))]
-    (if (get options :count)
-      (.getCount query-result)
-      (map item-map (.getItems query-result)))))
+    (with-meta
+      (map item-map (or (.getItems query-result) {}))
+      (merge {:count (.getCount query-result)
+              :consumed-capacity-units (.getConsumedCapacityUnits query-result)}
+             (if-let [k (.getLastEvaluatedKey query-result)]
+               {:last-evaluated-key (decode-key k)})))))
+
+(defn- to-scan-filter
+  [scan-filter]
+  (when scan-filter
+    (fmap #(apply build-condition %) scan-filter)))
+
+(defn scan
+  "Return the items in a DynamoDB table.
+
+  The scan-filter is a map from attribute name to condition in the
+  form [op param1 param2 ...].
+
+  Takes the following options:
+    :limit - should be a positive integer
+    :count - return a count if logical true
+    :attributes-to-get - a list of attribute names
+    :exclusive-start-key - primary key of the item from which to
+         continue an earlier query
+
+  The metadata of the return value contains:
+    :count - the number of items in the response
+    :scanned-count - number of items in the complete scan before any
+         filters are applied
+    :consumed-capacity-units - the consumed capacity units
+    :last-evaluated-key - the primary key of the item where the scan
+         operation stopped, or nil if the scan is fully completed. It
+         can be used to continue the operation by supplying it as a
+         value to :exclusive-start-key"
+  [cred table scan-filter & {:keys [limit count attributes-to-get exclusive-start-key]}]
+  (let [result (.scan
+                (db-client cred)
+                (doto (ScanRequest. table)
+                  (.setScanFilter (to-scan-filter scan-filter))
+                  (.setLimit limit)
+                  (.setCount count)
+                  (.setAttributesToGet attributes-to-get)
+                  (.setExclusiveStartKey (item-key exclusive-start-key))))]
+    (with-meta
+      (map item-map (or (.getItems result) {}))
+      (merge {:count (.getCount result)
+              :scanned-count (.getScannedCount result)
+              :consumed-capacity-units (.getConsumedCapacityUnits result)}
+             (if-let [k (.getLastEvaluatedKey result)]
+               {:last-evaluated-key (decode-key k)})))))
