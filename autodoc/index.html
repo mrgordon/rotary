@@ -1,0 +1,332 @@
+<html>
+  <head>
+    <title>rotary.client - rotary API documentation</title>
+    <link href="static/favicon.png" rel="icon" />
+    <link href="static/favicon.png" rel="shortcut icon" />
+    <link media="all" type="text/css" href="static/clojure.css" rel="stylesheet" />
+    <link media="all" type="text/css" href="static/wiki.css" rel="stylesheet" />
+    <link media="all" type="text/css" href="static/internal.css" rel="stylesheet" />
+    <style>.menuWrapper{height: 36px;}</style>
+    <!--[if lte IE 6]>
+    <link rel="stylesheet" href="http://www.wikispaces.com/_/2009051601/s/internal_ie.css" type="text/css" />
+    <![endif]-->
+  </head>
+<!--
+This document was auto-generated from the source by the clojure autodoc system.
+To report errors or ask questions about the overall documentation structure, formatting,
+etc., contact Tom Faulhaber (google mail name: tomfaulhaber).
+For errors in the documentation of a particular namespace, contact the author of that
+namespace.
+-->
+  <body>
+    <div id="AllContentContainer">
+      <div id="Header">
+	<a id="Logo" href="index.html"><img alt="Clojure" height="100" width="100" src="static/clojure-icon.gif" /></a>
+	<h1><a title="page header title" id="page-header" href="index.html">rotary</a></h1>
+      </div>
+      <div id="leftcolumn"><div style="text-align: center;"></div>
+<div class="menu">
+  <div class="WikiCustomNav WikiElement wiki">
+    <span class="toc-header"><span id="project-name">rotary</span> <span id="version"></span> API</span><br />
+    <ul>
+      <li><a class="wiki_link" href="index.html">Overview</a></li>
+      <li><a class="wiki_link" href="api-index.html">API Index</a></li>
+    </ul>
+    
+    
+    <a href="http://clojure.org" class="wiki_link">Clojure Home</a>
+  </div>
+</div>
+</div>
+      <div id="rightcolumn">
+	<div id="Content">
+	  <div class="contentBox"><div class="innerContentBox">
+              <div id="content_view" class="wiki wikiPage">
+                <div id="right-sidebar"><div id="toc">
+  <h1 class="nopad">Table of Contents</h1>
+  <div style="margin-left: 1em;" class="toc-section">
+    <a href="#toc0">Overview</a>
+    <div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/create-table">create-table</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/delete-item">delete-item</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/delete-table">delete-table</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/describe-table">describe-table</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/ensure-table">ensure-table</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/get-item">get-item</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/list-tables">list-tables</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/multiple-batch-write">multiple-batch-write</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/put-item">put-item</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/query">query</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/scan">scan</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/update-item">update-item</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#rotary.client/update-table">update-table</a>
+    </div>
+    <br />
+  </div>
+</div>
+</div>
+                <div id="content-tag"><h1 id="overview">API for <span id="namespace-name">rotary.client</span>
+  - <span id="header-project">rotary</span> <span id="header-version"></span>
+  </h1>
+
+<br />Full namespace name: <span id="long-name">rotary.client</span>
+<p></p>
+<h2>Overview</h2>
+<pre id="namespace-docstr">Amazon DynamoDB client functions.</pre>
+
+
+<br />
+<h2>Public Variables and Functions</h2>
+<div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/create-table">create-table</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (create-table cred {:keys [name hash-key range-key throughput]})
+</pre>
+  <pre id="var-docstr">Create a table in DynamoDB with the given map of properties.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/delete-item">delete-item</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (delete-item cred table [hash-key range-key :as key] &amp; {:keys [expected return-values]})
+</pre>
+  <pre id="var-docstr">Delete an item from a DynamoDB table specified by its key, if the
+coditions are met. Takes the following options:
+  :expected - a map from attribute name to:
+     :rotary.client/exists - checks if the attribute exists
+     :rotary.client/not-exists - checks if the attribute doesn't exist
+     anything else - checks if the attribute is equal to it
+  :return-values - specify what to return:
+     "NONE", "ALL_OLD", "UPDATED_OLD", "ALL_NEW", "UPDATED_NEW"
+
+The metadata of the return value contains:
+  :consumed-capacity-units - the consumed capacity units</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/delete-table">delete-table</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (delete-table cred name)
+</pre>
+  <pre id="var-docstr">Delete a table in DynamoDB with the given name.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/describe-table">describe-table</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (describe-table cred name)
+</pre>
+  <pre id="var-docstr">Returns a map describing the table in DynamoDB with the given name, or nil
+if the table does not exist.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/ensure-table">ensure-table</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (ensure-table cred {:keys [name hash-key range-key throughput], :as properties})
+</pre>
+  <pre id="var-docstr">Creates the table if it does not already exist, updates the provisioned
+throughput if it does.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/get-item">get-item</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (get-item cred table hash-key &amp; {:keys [consistent attributes-to-get], :or {consistent false}})
+</pre>
+  <pre id="var-docstr">Retrieve an item from a DynamoDB table by its hash key.
+
+Options can be:
+  :consistent - consistent read
+  :attributes-to-get - a list of attribute names to return
+
+The metadata of the return value contains:
+  :consumed-capacity-units - the consumed capacity units</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/list-tables">list-tables</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (list-tables cred)
+</pre>
+  <pre id="var-docstr">Return a list of tables in DynamoDB.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/multiple-batch-write">multiple-batch-write</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (multiple-batch-write cred table item-coll &amp; [timeout])
+</pre>
+  <pre id="var-docstr">Batch writes the items (Clojure maps) in groups of 25 to a DynamoDB table. Retries failing groups once.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/put-item">put-item</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (put-item cred table item &amp; {:keys [expected return-values]})
+</pre>
+  <pre id="var-docstr">Add an item (a Clojure map) to a DynamoDB table.
+Takes the following options:
+  :expected - a map from attribute name to:
+     :rotary.client/exists - checks if the attribute exists
+     :rotary.client/not-exists - checks if the attribute doesn't exist
+     anything else - checks if the attribute is equal to it
+  :return-values - specify what to return:
+     "NONE", "ALL_OLD"
+
+The metadata of the return value contains:
+  :consumed-capacity-units - the consumed capacity units</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/query">query</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (query cred table hash-key range-clause &amp; {:keys [order limit count consistent attributes-to-get exclusive-start-key], :as options})
+</pre>
+  <pre id="var-docstr">Return the items in a DynamoDB table matching the supplied hash key.
+Can specify a range clause if the table has a range-key ie. `(&gt;= 234)
+Takes the following options:
+  :order - may be :asc or :desc (defaults to :asc)
+  :limit - should be a positive integer
+  :count - return a count if logical true
+  :consistent - return a consistent read if logical true
+  :attributes-to-get - a list of attribute names
+  :exclusive-start-key - primary key of the item from which to
+       continue an earlier query
+
+The metadata of the return value contains:
+  :count - the number of items in the response
+  :consumed-capacity-units - the consumed capacity units
+  :last-evaluated-key - the primary key of the item where the query
+       operation stopped, or nil if the query is fully completed. It
+       can be used to continue the operation by supplying it as a
+       value to :exclusive-start-key</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/scan">scan</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (scan cred table scan-filter &amp; {:keys [limit count attributes-to-get exclusive-start-key]})
+</pre>
+  <pre id="var-docstr">Return the items in a DynamoDB table.
+
+The scan-filter is a map from attribute name to condition in the
+form [op param1 param2 ...].
+
+Takes the following options:
+  :limit - should be a positive integer
+  :count - return a count if logical true
+  :attributes-to-get - a list of attribute names
+  :exclusive-start-key - primary key of the item from which to
+       continue an earlier query
+
+The metadata of the return value contains:
+  :count - the number of items in the response
+  :scanned-count - number of items in the complete scan before any
+       filters are applied
+  :consumed-capacity-units - the consumed capacity units
+  :last-evaluated-key - the primary key of the item where the scan
+       operation stopped, or nil if the scan is fully completed. It
+       can be used to continue the operation by supplying it as a
+       value to :exclusive-start-key</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/update-item">update-item</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (update-item cred table [hash-key range-key :as key] update-map &amp; {:keys [expected return-values]})
+</pre>
+  <pre id="var-docstr">Update an item (a Clojure map) in a DynamoDB table.
+
+The key can be: [hash-key] or [hash-key range-key]
+
+Update map is a map from attribute name to [action value], where
+action is one of :add, :put, or :delete.
+
+Takes the following options:
+  :expected - a map from attribute name to:
+     :rotary.client/exists - checks if the attribute exists
+     :rotary.client/not-exists - checks if the attribute doesn't exist
+     anything else - checks if the attribute is equal to it
+  :return-values - specify what to return:
+     "NONE", "ALL_OLD", "UPDATED_OLD", "ALL_NEW", "UPDATED_NEW"</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="rotary.client/update-table">update-table</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (update-table cred {:keys [name throughput]})
+</pre>
+  <pre id="var-docstr">Update a table in DynamoDB with the given name.</pre>
+  
+  
+  
+</div>
+
+
+</div>
+              </div>
+            </div>
+          </div>
+	</div>
+	<div id="foot">
+	  <div style="text-align: center;" id="copyright">Copyright 2012 James Reeves. Modifications 2012 Matthew Gordon (CrowdFlower) and Ivan Toshkov</div>
+	</div>
+      </div>
+      <div id="DesignedBy">Logo &amp; site design by <a title="Visit Tom Hickey's website." href="http://www.tomhickey.com">Tom Hickey</a>.<br />
+      Clojure auto-documentation system by Tom Faulhaber.</div>
+    </div>
+    <!-- /AllContentContainer -->
+  </body>
+
+</html>
