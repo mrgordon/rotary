@@ -161,9 +161,11 @@ throughput if it does.</pre>
   <hr />
   <h2 id="rotary.client/get-item">get-item</h2>
   <span id="var-type">function</span><br />
-  <pre id="var-usage">Usage: (get-item cred table hash-key &amp; {:keys [consistent attributes-to-get], :or {consistent false}})
+  <pre id="var-usage">Usage: (get-item cred table key &amp; {:keys [consistent attributes-to-get], :or {consistent false}})
 </pre>
   <pre id="var-docstr">Retrieve an item from a DynamoDB table by its hash key.
+
+The key can be: hash-key, [hash-key], or [hash-key range-key]
 
 Options can be:
   :consistent - consistent read
@@ -281,11 +283,11 @@ The metadata of the return value contains:
   <hr />
   <h2 id="rotary.client/update-item">update-item</h2>
   <span id="var-type">function</span><br />
-  <pre id="var-usage">Usage: (update-item cred table [hash-key range-key :as key] update-map &amp; {:keys [expected return-values]})
+  <pre id="var-usage">Usage: (update-item cred table key update-map &amp; {:keys [expected return-values]})
 </pre>
   <pre id="var-docstr">Update an item (a Clojure map) in a DynamoDB table.
 
-The key can be: [hash-key] or [hash-key range-key]
+The key can be: hash-key, [hash-key], or [hash-key range-key]
 
 Update map is a map from attribute name to [action value], where
 action is one of :add, :put, or :delete.
