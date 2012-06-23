@@ -314,7 +314,7 @@
 (defn update-item
   "Update an item (a Clojure map) in a DynamoDB table.
 
-  The key can be: [hash-key] or [hash-key range-key]
+  The key can be: hash-key, [hash-key], or [hash-key range-key]
 
   Update map is a map from attribute name to [action value], where
   action is one of :add, :put, or :delete.
@@ -327,19 +327,22 @@
     :return-values - specify what to return:
        \"NONE\", \"ALL_OLD\", \"UPDATED_OLD\", \"ALL_NEW\", \"UPDATED_NEW\""
   ;; TODO Consider using keywords for the "return-values"
-  [cred table [hash-key range-key :as key] update-map & {:keys [expected return-values]}]
-  (let [attribute-update-map (fmap to-attr-value-update update-map)]
+  [cred table key update-map & {:keys [expected return-values]}]
+  (let [attribute-update-map (fmap to-attr-value-update update-map)
+        key-vector (if (vector? key) key (vector key))]
     (.updateItem
      (db-client cred)
      (doto (UpdateItemRequest.)
        (.setTableName table)
-       (.setKey (item-key key))
+       (.setKey (item-key key-vector))
        (.setAttributeUpdates attribute-update-map)
        (.setExpected (to-expected-values expected))
        (.setReturnValues return-values)))))
 
 (defn get-item
-  "Retrieve an item from a DynamoDB table by its hash key.
+  "Retrieve an item (a Clojure map) from a DynamoDB table by its key.
+
+  The key can be: hash-key, [hash-key], or [hash-key range-key]
 
   Options can be:
     :consistent - consistent read
@@ -347,15 +350,16 @@
 
   The metadata of the return value contains:
     :consumed-capacity-units - the consumed capacity units"
-  [cred table hash-key & {:keys [consistent attributes-to-get] :or {consistent false}}]
-  (as-map
-   (.getItem
-    (db-client cred)
-    (doto (GetItemRequest.)
-      (.setTableName table)
-      (.setKey (item-key [hash-key]))
-      (.setConsistentRead consistent)
-      (.setAttributesToGet attributes-to-get)))))
+  [cred table key & {:keys [consistent attributes-to-get] :or {consistent false}}]
+  (let [key-vector (if (vector? key) key (vector key))]
+    (as-map
+     (.getItem
+      (db-client cred)
+      (doto (GetItemRequest.)
+        (.setTableName table)
+        (.setKey (item-key key-vector))
+        (.setConsistentRead consistent)
+        (.setAttributesToGet attributes-to-get))))))
 
 (defn delete-item
   "Delete an item from a DynamoDB table specified by its key, if the
