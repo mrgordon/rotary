@@ -20,7 +20,7 @@ Add the following dependency to your Clojure project:
 
 ## Documentation
 
-* [API Docs](http://weavejester.github.com/rotary)
+* [API Docs](http://mrgordon.github.com/rotary)
 
 ## License
 
