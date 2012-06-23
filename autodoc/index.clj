@@ -76,7 +76,7 @@
    :raw-source-url nil,
    :wiki-url "/rotary.client-api.html#rotary.client/get-item",
    :doc
-   "Retrieve an item from a DynamoDB table by its hash key.\n\nOptions can be:\n  :consistent - consistent read\n  :attributes-to-get - a list of attribute names to return\n\nThe metadata of the return value contains:\n  :consumed-capacity-units - the consumed capacity units",
+   "Retrieve an item from a DynamoDB table by its hash key.\n\nThe key can be: hash-key, [hash-key], or [hash-key range-key]\n\nOptions can be:\n  :consistent - consistent read\n  :attributes-to-get - a list of attribute names to return\n\nThe metadata of the return value contains:\n  :consumed-capacity-units - the consumed capacity units",
    :var-type "function",
    :line 341,
    :file "src/rotary/client.clj"}
@@ -166,7 +166,7 @@
    :raw-source-url nil,
    :wiki-url "/rotary.client-api.html#rotary.client/update-item",
    :doc
-   "Update an item (a Clojure map) in a DynamoDB table.\n\nThe key can be: [hash-key] or [hash-key range-key]\n\nUpdate map is a map from attribute name to [action value], where\naction is one of :add, :put, or :delete.\n\nTakes the following options:\n  :expected - a map from attribute name to:\n     :rotary.client/exists - checks if the attribute exists\n     :rotary.client/not-exists - checks if the attribute doesn't exist\n     anything else - checks if the attribute is equal to it\n  :return-values - specify what to return:\n     \"NONE\", \"ALL_OLD\", \"UPDATED_OLD\", \"ALL_NEW\", \"UPDATED_NEW\"",
+   "Update an item (a Clojure map) in a DynamoDB table.\n\nThe key can be: hash-key, [hash-key], or [hash-key range-key]\n\nUpdate map is a map from attribute name to [action value], where\naction is one of :add, :put, or :delete.\n\nTakes the following options:\n  :expected - a map from attribute name to:\n     :rotary.client/exists - checks if the attribute exists\n     :rotary.client/not-exists - checks if the attribute doesn't exist\n     anything else - checks if the attribute is equal to it\n  :return-values - specify what to return:\n     \"NONE\", \"ALL_OLD\", \"UPDATED_OLD\", \"ALL_NEW\", \"UPDATED_NEW\"",
    :var-type "function",
    :line 314,
    :file "src/rotary/client.clj"}
