@@ -295,10 +295,10 @@
 
 (defn- item-key
   "Create a Key object from a value."
-  ([[hash-key range-key :as key]]
+  ([key]
      (cond
          (nil? key) nil
-         (vector? key) (item-key hash-key range-key)
+         (vector? key) (item-key (first key) (second key))
          :else (item-key key nil)))
   ([hash-key range-key]
      (Key. (to-attr-value hash-key)
@@ -328,13 +328,12 @@
        \"NONE\", \"ALL_OLD\", \"UPDATED_OLD\", \"ALL_NEW\", \"UPDATED_NEW\""
   ;; TODO Consider using keywords for the "return-values"
   [cred table key update-map & {:keys [expected return-values]}]
-  (let [attribute-update-map (fmap to-attr-value-update update-map)
-        key-vector (if (vector? key) key (vector key))]
+  (let [attribute-update-map (fmap to-attr-value-update update-map)]
     (.updateItem
      (db-client cred)
      (doto (UpdateItemRequest.)
        (.setTableName table)
-       (.setKey (item-key key-vector))
+       (.setKey (item-key key))
        (.setAttributeUpdates attribute-update-map)
        (.setExpected (to-expected-values expected))
        (.setReturnValues return-values)))))
@@ -351,15 +350,14 @@
   The metadata of the return value contains:
     :consumed-capacity-units - the consumed capacity units"
   [cred table key & {:keys [consistent attributes-to-get] :or {consistent false}}]
-  (let [key-vector (if (vector? key) key (vector key))]
-    (as-map
-     (.getItem
-      (db-client cred)
-      (doto (GetItemRequest.)
-        (.setTableName table)
-        (.setKey (item-key key-vector))
-        (.setConsistentRead consistent)
-        (.setAttributesToGet attributes-to-get))))))
+  (as-map
+   (.getItem
+    (db-client cred)
+    (doto (GetItemRequest.)
+      (.setTableName table)
+      (.setKey (item-key key))
+      (.setConsistentRead consistent)
+      (.setAttributesToGet attributes-to-get)))))
 
 (defn delete-item
   "Delete an item from a DynamoDB table specified by its key, if the
@@ -374,7 +372,7 @@
   The metadata of the return value contains:
     :consumed-capacity-units - the consumed capacity units"
   ;; TODO Consider using keywords for the "return-values"
-  [cred table [hash-key range-key :as key] & {:keys [expected return-values]}]
+  [cred table key & {:keys [expected return-values]}]
   (as-map
    (.deleteItem
     (db-client cred)
