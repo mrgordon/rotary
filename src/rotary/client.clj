@@ -372,7 +372,7 @@
   The metadata of the return value contains:
     :consumed-capacity-units - the consumed capacity units"
   ;; TODO Consider using keywords for the "return-values"
-  [cred table [hash-key range-key :as key] & {:keys [expected return-values]}]
+  [cred table key & {:keys [expected return-values]}]
   (as-map
    (.deleteItem
     (db-client cred)
