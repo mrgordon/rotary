@@ -432,14 +432,12 @@
                       (db-client cred)
                       (query-request table hash-key range-clause options))
         item-count   (.getCount query-result)]
-    (if (get options :count)
-      item-count
-      (with-meta
-        (map item-map (or (.getItems query-result) {}))
-        (merge {:count item-count
-                :consumed-capacity-units (.getConsumedCapacityUnits query-result)}
-               (if-let [k (.getLastEvaluatedKey query-result)]
-                 {:last-evaluated-key (decode-key k)}))))))
+    (with-meta
+      (map item-map (or (.getItems query-result) {}))
+      (merge {:count item-count
+              :consumed-capacity-units (.getConsumedCapacityUnits query-result)}
+             (if-let [k (.getLastEvaluatedKey query-result)]
+               {:last-evaluated-key (decode-key k)})))))
 
 (defn- to-scan-filter
   [scan-filter]
