@@ -390,21 +390,6 @@
       (.withComparisonOperator (normalize-operator operator))
       (.withAttributeValueList attribute-list))))
 
-(defn- set-range-condition
-  "Add the range key condition to a QueryRequest object"
-  [query-request operator & [range-key range-end]]
-  (let [attribute-list (map (fn [arg] (to-attr-value arg)) (remove nil? [range-key range-end]))]
-    (.setRangeKeyCondition query-request
-                           (doto (Condition.)
-                             (.withComparisonOperator operator)
-                             (.withAttributeValueList attribute-list)))))
-
-(defn- normalize-operator [operator]
-  "Maps Clojure operators to DynamoDB operators"
-  (let [operator-map {:> "GT" :>= "GE" :< "LT" :<= "LE" := "EQ"}
-        op (->> operator name str/upper-case)]
-    (operator-map (keyword op) op)))
-
 (defn- query-request
   "Create a QueryRequest object."
   [table hash-key range-clause {:keys [order limit count consistent attributes-to-get exclusive-start-key]}]
