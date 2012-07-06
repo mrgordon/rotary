@@ -191,8 +191,8 @@
   "Get the value of an AttributeValue object."
   [attr-value]
   (or (.getS attr-value)
-      (.getN attr-value)
-      (if-let [v (.getNS attr-value)] (into #{} v))
+      (read-string (.getN attr-value))
+      (if-let [v (.getNS attr-value)] (into #{} (map #(read-string %) v)))
       (if-let [v (.getSS attr-value)] (into #{} v))))
 
 (defn- to-expected-value
@@ -283,14 +283,17 @@
   [cred table item-coll]
   (let [get-unprocessed (fn [res] (flatten (map vec (vals (.getUnprocessedItems res)))))
         partitions      (partition-all 25 item-coll)
-        success         (atom true)]
+        failed          (atom ())]
     (doseq [items partitions]
-      (if @success
+      (if (empty? @failed)
         (let [response (batch-write cred table items)
               unprocessed (get-unprocessed response)]
           (if (seq unprocessed)
-            (swap! success (constantly false))))))
-    @success))
+            (swap! failed concat
+                   ;; Transform each unprocessed item back into the format of the original items
+                   (map #(fmap get-value (into {} (.getItem (.getPutRequest %)))) unprocessed))))
+        (swap! failed concat items)))
+    @failed))
 
 (defn- item-key
   "Create a Key object from a value."
