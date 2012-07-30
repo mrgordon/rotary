@@ -352,14 +352,17 @@
   The metadata of the return value contains:
     :consumed-capacity-units - the consumed capacity units"
   [cred table key & {:keys [consistent attributes-to-get] :or {consistent false}}]
-  (as-map
-   (.getItem
-    (db-client cred)
-    (doto (GetItemRequest.)
-      (.setTableName table)
-      (.setKey (item-key key))
-      (.setConsistentRead consistent)
-      (.setAttributesToGet attributes-to-get)))))
+  (let [item (as-map
+               (.getItem
+                 (db-client cred)
+                 (doto (GetItemRequest.)
+                   (.setTableName table)
+                   (.setKey (item-key key))
+                   (.setConsistentRead consistent)
+                   (.setAttributesToGet attributes-to-get))))]
+    (if (empty? item)
+        nil
+        item)))
 
 (defn delete-item
   "Delete an item from a DynamoDB table specified by its key, if the
