@@ -31,6 +31,7 @@
             ResourceNotFoundException
             ScanRequest
             UpdateItemRequest
+            UpdateItemResult
             UpdateTableRequest
             WriteRequest]))
 
@@ -231,6 +232,12 @@
   (as-map [result]
     (with-meta
       (item-map (or (.getAttributes result) {}))
+      {:consumed-capacity-units (.getConsumedCapacityUnits result)}))
+
+  UpdateItemResult
+  (as-map [result]
+    (with-meta
+      (item-map (or (.getAttributes result) {}))
       {:consumed-capacity-units (.getConsumedCapacityUnits result)})))
 
 (defn put-item
@@ -331,14 +338,15 @@
   ;; TODO Consider using keywords for the "return-values"
   [cred table key update-map & {:keys [expected return-values]}]
   (let [attribute-update-map (fmap to-attr-value-update update-map)]
-    (.updateItem
-     (db-client cred)
-     (doto (UpdateItemRequest.)
-       (.setTableName table)
-       (.setKey (item-key key))
-       (.setAttributeUpdates attribute-update-map)
-       (.setExpected (to-expected-values expected))
-       (.setReturnValues return-values)))))
+    (as-map
+      (.updateItem
+         (db-client cred)
+         (doto (UpdateItemRequest.)
+           (.setTableName table)
+           (.setKey (item-key key))
+           (.setAttributeUpdates attribute-update-map)
+           (.setExpected (to-expected-values expected))
+           (.setReturnValues return-values))))))
 
 (defn get-item
   "Retrieve an item (a Clojure map) from a DynamoDB table by its key.
