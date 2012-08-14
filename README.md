@@ -8,7 +8,7 @@ A Clojure client for Amazon's [DynamoDB][1] database.
 
 Add the following dependency to your Clojure project:
 
-    [org.clojars.crowdflower/rotary "0.3.4"]
+    [org.clojars.crowdflower/rotary "0.3.5"]
 
 ## Simple Example
 
