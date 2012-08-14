@@ -192,7 +192,7 @@
   "Get the value of an AttributeValue object."
   [attr-value]
   (or (.getS attr-value)
-      (read-string (.getN attr-value))
+      (if-let [v (.getN attr-value)] (read-string v))
       (if-let [v (.getNS attr-value)] (into #{} (map #(read-string %) v)))
       (if-let [v (.getSS attr-value)] (into #{} v))))
 
