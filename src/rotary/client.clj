@@ -2,7 +2,8 @@
   "Amazon DynamoDB client functions."
   (:use [clojure.algo.generic.functor :only (fmap)])
   (:require [clojure.string :as str])
-  (:import com.amazonaws.auth.BasicAWSCredentials
+  (:import java.nio.ByteBuffer
+           com.amazonaws.auth.BasicAWSCredentials
            com.amazonaws.services.dynamodb.AmazonDynamoDBClient
            [com.amazonaws.services.dynamodb.model
             AttributeValue
@@ -171,12 +172,16 @@
   "Convert a value into an AttributeValue object."
   [value]
   (cond
+   (instance? ByteBuffer value)
+   (doto (AttributeValue.) (.setB value))
    (string? value)
    (doto (AttributeValue.) (.setS value))
    (number? value)
    (doto (AttributeValue.) (.setN (str value)))
    (coll? value)
    (cond
+    (instance? ByteBuffer (first value))
+    (doto (AttributeValue.) (.setBS value))
     (string? (first value))
     (doto (AttributeValue.) (.setSS value))
     (number? (first value))
@@ -191,8 +196,10 @@
 (defn- get-value
   "Get the value of an AttributeValue object."
   [attr-value]
-  (or (.getS attr-value)
+  (or (.getB attr-value)
+      (.getS attr-value)
       (if-let [v (.getN attr-value)] (read-string v))
+      (if-let [v (.getBS attr-value)] (into #{} v))
       (if-let [v (.getNS attr-value)] (into #{} (map #(read-string %) v)))
       (if-let [v (.getSS attr-value)] (into #{} v))))
 
