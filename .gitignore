@@ -6,4 +6,7 @@ pom.xml
 .lein-deps-sum
 .lein-env
 .lein-plugins/
+.lein-repl-history
 /doc
+/target
+
