@@ -1,4 +1,4 @@
-(defproject org.clojars.crowdflower/rotary "0.3.9"
+(defproject org.clojars.crowdflower/rotary "0.4.0"
   :description "Amazon DynamoDB API"
   :url "https://github.com/CrowdFlower/rotary"
   :license {:name "Eclipse Public License - v 1.0"
