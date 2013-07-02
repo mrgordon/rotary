@@ -8,7 +8,7 @@ A Clojure client for Amazon's [DynamoDB][1] database.
 
 Add the following dependency to your Clojure project:
 
-    [org.clojars.crowdflower/rotary "0.3.8"]
+    [org.clojars.crowdflower/rotary "0.4.1"]
 
 ## Simple Example
 
@@ -21,6 +21,12 @@ Add the following dependency to your Clojure project:
 ## Documentation
 
 * [API Docs](http://mrgordon.github.com/rotary)
+
+## Testing
+
+Run tests using `AMAZON_SECRET_ID=MySecretID AMAZON_SECRET_ACCESS_KEY=SomeVerySecretAccessKey lein test`
+
+The test suite creates a minimal table to test against and attempts to clean it up afterwards
 
 ## License
 

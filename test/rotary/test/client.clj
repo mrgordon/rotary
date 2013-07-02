@@ -1,18 +1,32 @@
 (ns rotary.test.client
-  (:use [rotary.client])
-  (:use [clojure.test])
+  (:use [rotary.client]
+        [clojure.test])
   (:import (com.amazonaws.auth BasicAWSCredentials)))
 
-(def aws-credential {:access-key "myAccessKey", :secret-key "mySecretKey"})
-
+(def aws-credential {:access-key (get (System/getenv) "AMAZON_SECRET_ID")
+                     :secret-key (get (System/getenv) "AMAZON_SECRET_ACCESS_KEY")})
 (def test-table "TestTable")
-
-; The tests rely on having a DynamoDB table named "TestTable" with the following three items
-; hash-key 22, range-key 1339202645
-; hash-key 22, range-key 1339202640
-; hash-key 25, range-key 1339202645
-
 (def value1 13392)
+
+(defn setup-table [f]
+  ;; TODO: ensure-table doesn't block long enough so it is
+  ;; possible you will get a ResourceNotFound 400 on put-item
+  ;; if the table did not previously exist
+  (ensure-table aws-credential {:name test-table
+                                :hash-key {:name "value" :type :n}
+                                :range-key {:name "time" :type :n}
+                                :throughput {:write 1 :read 1}})
+  (put-item aws-credential test-table {"value" 22 "time" 1339202645})
+  (put-item aws-credential test-table {"value" 22 "time" 1339202640})
+  (put-item aws-credential test-table {"value" 25 "time" 1339202645})
+  (f))
+
+(defn cleanup-table [f]
+  (f)
+  (delete-table aws-credential test-table))
+
+(use-fixtures :each setup-table)
+(use-fixtures :once cleanup-table)
 
 (deftest query-with-range-key-can-find-rows
   (is (count (query aws-credential test-table 25 `(> 1339))) 1))
